@@ -1,25 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>Broadcaster</title>
- <style>
- body { font-family: sans-serif; padding: 20px; }
- video { width: 100%; max-width: 600px; border: 2px solid #333; }
- #token { background: #eee; padding: 10px; font-family: monospace; cursor: pointer; }
- </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0c0e">
+  <title>Broadcaster Studio</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body>
- <h1>Broadcaster 📹</h1>
- <video id="localVideo" autoplay playsinline muted></video>
- <h3>Token (berikan ke viewer):</h3>
- <p id="token" title="Klik untuk menyalin">Loading...</p>
- <script src="/socket.io/socket.io.js"></script>
- <script type="module" src="main.js"></script>
- <script type="module">
- import { startBroadcast } from './main.js';
- startBroadcast();
- </script>
+<body data-app="broadcaster">
+  <script src="connection-hint.js"></script>
+  <header class="app-header">
+    <div class="brand-block">
+      <span class="eyebrow">REAL-TIME VIDEO / WEBRTC</span>
+      <h1>Broadcaster Studio</h1>
+    </div>
+    <div class="header-tools">
+      <span id="broadcaster-connection" class="status-badge status-offline"><span class="status-dot"></span> MENGHUBUNGKAN</span>
+      <span class="viewer-total"><svg aria-hidden="true"><use href="#icon-users"></use></svg><span id="viewer-count">0 viewer</span></span>
+      <div class="room-control">
+        <span class="eyebrow">ROOM</span>
+        <button id="token-display" class="room-token" type="button" title="Salin token room">Memuat…</button>
+      </div>
+      <button id="copy-link-btn" class="button button-muted" type="button">
+        <svg aria-hidden="true"><use href="#icon-link"></use></svg><span>Salin tautan viewer</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="studio-layout">
+    <section class="studio-workspace" aria-label="Kontrol siaran">
+      <section class="panel source-panel">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">INPUT SIARAN</span>
+            <h2>Pilih sumber video</h2>
+          </div>
+          <div class="segmented-control" role="tablist" aria-label="Sumber video">
+            <button id="tab-file-source" class="segment-button active" type="button" role="tab" aria-selected="true">File video</button>
+            <button id="tab-cam-source" class="segment-button" type="button" role="tab" aria-selected="false">Kamera web</button>
+          </div>
+        </div>
+        <div id="file-uploader-box" class="upload-zone">
+          <svg class="upload-icon" aria-hidden="true"><use href="#icon-upload"></use></svg>
+          <div>
+            <strong>Pilih atau tarik file video ke sini</strong>
+            <p>MP4, WebM, Ogg, MOV, atau format video yang didukung browser.</p>
+          </div>
+          <button id="btn-trigger-file" class="button button-primary" type="button">Pilih file</button>
+          <input id="videoFileInput" class="visually-hidden" type="file" accept="video/*">
+        </div>
+        <div id="active-file-pill" class="file-pill" hidden>
+          <span class="file-pill-name"><svg aria-hidden="true"><use href="#icon-video"></use></svg><span id="active-file-name">Belum ada file</span></span>
+          <button id="btn-change-file" class="button button-muted button-small" type="button">Ganti file</button>
+        </div>
+      </section>
+
+      <section id="video-wrapper" class="video-stage" aria-label="Pratinjau siaran">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div class="video-stage-label"><span class="status-dot"></span> Pratinjau broadcaster</div>
+        <div id="sc-alert" class="superchat-banner" aria-live="polite"></div>
+      </section>
+
+      <section id="playback-controls" class="panel playback-panel">
+        <div class="progress-row">
+          <input id="video-progress" class="range-input" type="range" min="0" max="100" value="0" step="0.1" aria-label="Posisi video">
+          <span id="time-display" class="muted-text">00:00 / 00:00</span>
+        </div>
+        <div class="control-row">
+          <button id="btn-play-pause" class="button button-muted" type="button">Putar</button>
+          <label class="inline-control"><input id="check-loop" type="checkbox" checked> Ulangi video</label>
+          <label class="volume-control"><span>Volume pratinjau</span><input id="vol-slider" class="range-input" type="range" min="0" max="1" step="0.05" value="1"></label>
+        </div>
+      </section>
+
+      <section id="camera-controls" class="panel camera-panel" hidden>
+        <span class="camera-state"><span class="status-dot"></span> Kamera aktif</span>
+        <button id="toggle-cam-mic" class="button button-muted" type="button"><svg aria-hidden="true"><use href="#icon-mic"></use></svg><span>Mikrofon aktif</span></button>
+        <button id="toggle-cam-vid" class="button button-muted" type="button"><svg aria-hidden="true"><use href="#icon-video"></use></svg><span>Kamera aktif</span></button>
+      </section>
+
+      <section class="panel filter-panel">
+        <div class="section-heading compact-heading">
+          <div><span class="eyebrow">TAMPILAN</span><h2>Filter siaran</h2></div>
+        </div>
+        <div id="filter-bar" class="filter-bar" role="group" aria-label="Filter video"></div>
+      </section>
+    </section>
+
+    <aside class="panel interaction-panel" aria-label="Interaksi siaran">
+      <div class="tab-list" role="tablist" aria-label="Panel studio">
+        <button class="dashboard-tab active" data-tab="chat-tab" type="button" role="tab" aria-selected="true">Live chat</button>
+        <button class="dashboard-tab" data-tab="viewers-tab" type="button" role="tab" aria-selected="false">Viewer <span id="viewer-tab-count">0</span></button>
+      </div>
+      <section id="chat-tab" class="dashboard-tab-panel active" role="tabpanel">
+        <div id="pinned-sc" class="pinned-superchat">
+          <span class="eyebrow">SUPERCHAT TERBARU</span>
+          <div class="pin-content">Belum ada superchat</div>
+        </div>
+        <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        <form id="chat-form" class="chat-compose">
+          <input id="chat-input" type="text" maxlength="200" placeholder="Tulis balasan…" autocomplete="off" aria-label="Pesan chat">
+          <button id="send-chat-btn" class="button button-primary button-icon" type="submit" aria-label="Kirim pesan"><svg aria-hidden="true"><use href="#icon-send"></use></svg></button>
+        </form>
+      </section>
+      <section id="viewers-tab" class="dashboard-tab-panel" role="tabpanel" hidden>
+        <div id="viewer-list-panel" class="viewer-list"><p class="empty-state">Belum ada viewer bergabung.</p></div>
+      </section>
+      <p id="studio-status" class="inline-status" role="status"></p>
+    </aside>
+  </main>
+
+  <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m16 0v-2a4 4 0 0 0-3-3.87M14 3.13a4 4 0 0 1 0 7.75M10 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71m2.25 5.82a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></symbol>
+    <symbol id="icon-video" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+    <symbol id="icon-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  </svg>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="studio.js"></script>
+  <script src="effects.js" defer></script>
 </body>
 </html>

@@ -1,31 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>Viewer</title>
- <style>
- body { font-family: sans-serif; padding: 20px; }
- video { width: 100%; max-width: 600px; border: 2px solid #333; }
- input, button { padding: 10px; font-size: 1em; }
- </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0c0e">
+  <title>Live Viewer</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body>
- <h1>Viewer 📺</h1>
- <div>
- <input type="text" id="tokenInput" placeholder="Masukkan Token">
- <button id="joinBtn">Join</button>
- </div>
- <hr>
- <video id="remoteVideo" autoplay playsinline muted></video>
- <script src="/socket.io/socket.io.js"></script>
- <script type="module" src="main.js"></script>
- <script type="module">
- import { startView } from './main.js';
- document.getElementById('joinBtn').addEventListener('click', () => {
- const roomId = document.getElementById('tokenInput').value;
- if (roomId) startView(roomId);
- });
- </script>
+<body data-app="viewer">
+  <script src="connection-hint.js"></script>
+  <header class="app-header viewer-header">
+    <div class="brand-block">
+      <span class="eyebrow">REAL-TIME VIDEO / WEBRTC</span>
+      <h1>Live Viewer</h1>
+    </div>
+    <div class="header-tools">
+      <span id="stream-badge" class="status-badge status-offline"><span class="status-dot"></span> OFFLINE</span>
+      <span class="viewer-total"><svg aria-hidden="true"><use href="#icon-users"></use></svg><span id="viewer-count">0 viewer</span></span>
+      <button id="unmute-btn" class="button button-muted" type="button">Aktifkan suara</button>
+    </div>
+  </header>
+
+  <main class="viewer-layout">
+    <section id="video-panel" class="video-stage viewer-video-stage" aria-label="Siaran video">
+      <video id="remoteVideo" autoplay playsinline muted></video>
+      <div id="offline-msg" class="offline-message"><span class="offline-mark"></span><strong>Menunggu siaran</strong><span>Broadcaster akan muncul di sini saat mulai mengirim video.</span></div>
+      <button id="audio-prompt-banner" class="audio-prompt" type="button">Klik untuk mengaktifkan audio siaran</button>
+      <div id="sc-popup" class="viewer-superchat" aria-live="polite"></div>
+    </section>
+
+    <aside class="panel viewer-sidebar" aria-label="Live chat">
+      <div id="pinned-sc" class="pinned-superchat">
+        <span class="eyebrow">SUPERCHAT TERBARU</span>
+        <div class="pin-content">Belum ada superchat</div>
+      </div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+      <form id="chat-form" class="chat-compose">
+        <input id="chat-input" type="text" maxlength="200" placeholder="Tulis pesan…" autocomplete="off" aria-label="Pesan chat" disabled>
+        <button id="send-chat-btn" class="button button-primary button-icon" type="submit" aria-label="Kirim pesan" disabled><svg aria-hidden="true"><use href="#icon-send"></use></svg></button>
+      </form>
+      <button id="superchat-btn" class="button button-superchat" type="button" disabled><span class="superchat-mark"></span>Kirim Superchat</button>
+      <p id="viewer-status" class="inline-status" role="status"></p>
+    </aside>
+  </main>
+
+  <section id="join-overlay" class="modal-overlay" aria-modal="true" role="dialog" aria-labelledby="join-title">
+    <form id="join-form" class="modal-card">
+      <span class="eyebrow">AKSES SIARAN</span>
+      <h2 id="join-title">Masuk ke siaran</h2>
+      <p>Masukkan token room dan nama yang akan ditampilkan di live chat.</p>
+      <label class="field-label" for="token-input">Token room</label>
+      <input class="text-field" type="text" id="token-input" placeholder="Masukkan token room" required maxlength="40" autocomplete="off">
+      <label class="field-label" for="username-input">Nama pengguna</label>
+      <input class="text-field" type="text" id="username-input" placeholder="Nama Anda" maxlength="30" autocomplete="nickname">
+      <button id="join-btn" class="button button-primary join-button" type="submit">Gabung ke siaran</button>
+      <p id="join-status" class="inline-status" role="status"></p>
+    </form>
+  </section>
+
+  <section id="sc-modal" class="modal-overlay" aria-modal="true" role="dialog" aria-labelledby="sc-title" hidden>
+    <form id="sc-form" class="modal-card superchat-modal">
+      <span class="eyebrow">DUKUNGAN LANGSUNG</span>
+      <h2 id="sc-title">Kirim Superchat</h2>
+      <label class="field-label">Pilih nominal</label>
+      <div id="tier-grid" class="tier-grid" role="group" aria-label="Nominal Superchat"></div>
+      <label class="field-label" for="sc-msg-input">Pesan tambahan</label>
+      <textarea id="sc-msg-input" class="text-field" rows="3" maxlength="120" placeholder="Tulis pesan dukungan (opsional)"></textarea>
+      <div id="sc-preview" class="superchat-preview" aria-live="polite"></div>
+      <div class="modal-actions">
+        <button id="sc-cancel-btn" class="button button-muted" type="button">Batal</button>
+        <button id="sc-send-btn" class="button button-primary" type="submit">Kirim Superchat</button>
+      </div>
+    </form>
+  </section>
+
+  <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m16 0v-2a4 4 0 0 0-3-3.87M14 3.13a4 4 0 0 1 0 7.75M10 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  </svg>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="viewer.js"></script>
+  <script src="effects.js" defer></script>
 </body>
 </html>

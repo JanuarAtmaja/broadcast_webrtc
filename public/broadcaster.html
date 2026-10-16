@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Broadcaster</title>
+ <style>
+ body { font-family: sans-serif; padding: 20px; }
+ video { width: 100%; max-width: 600px; border: 2px solid #333; }
+ #token { background: #eee; padding: 10px; font-family: monospace; cursor: pointer; }
+ </style>
+</head>
+<body>
+ <h1>Broadcaster 📹</h1>
+ <video id="localVideo" autoplay playsinline muted></video>
+ <h3>Token (berikan ke viewer):</h3>
+ <p id="token" title="Klik untuk menyalin">Loading...</p>
+ <script src="/socket.io/socket.io.js"></script>
+ <script type="module" src="main.js"></script>
+ <script type="module">
+ import { startBroadcast } from './main.js';
+ startBroadcast();
+ </script>
+</body>
+</html>
